@@ -88,7 +88,7 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
       });
 
       // Record transaction in backend
-      await fetch(`${API_BASE}/api/transactions`, {
+      await fetch(`${API_BASE}/api/transactions/record`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

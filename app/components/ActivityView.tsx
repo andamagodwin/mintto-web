@@ -21,7 +21,7 @@ export default function ActivityView({ walletAddress }: { walletAddress: string 
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch(`${API_BASE}/api/transactions/${walletAddress}`);
+        const res = await fetch(`${API_BASE}/api/transactions/user/${walletAddress}`);
         if (res.ok) {
           setTransactions(await res.json());
         }

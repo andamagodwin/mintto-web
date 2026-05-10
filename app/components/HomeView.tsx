@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { depositUsdc } from "../lib/deposit";
 
 const API_BASE = "https://mintto-api-c493341a60c4.herokuapp.com";
 
@@ -32,6 +33,8 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
   const [groupName, setGroupName] = useState("");
   const [weeklyAmount, setWeeklyAmount] = useState("2000000");
   const [totalWeeks, setTotalWeeks] = useState("12");
+  const [depositing, setDepositing] = useState(false);
+  const [depositStatus, setDepositStatus] = useState<string | null>(null);
 
   async function loadData() {
     try {
@@ -69,6 +72,41 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
       console.error(e);
     }
     setCreating(false);
+  }
+
+  async function handleDeposit() {
+    if (!group) return;
+    setDepositing(true);
+    setDepositStatus(null);
+    try {
+      // Use vault_pda as recipient if available, otherwise use creator wallet as escrow
+      const recipient = group.vault_pda || walletAddress;
+      const signature = await depositUsdc({
+        walletAddress,
+        recipientAddress: recipient,
+        amount: Number(group.weekly_amount),
+      });
+
+      // Record transaction in backend
+      await fetch(`${API_BASE}/api/transactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          groupId: group.id,
+          walletAddress,
+          txSignature: signature,
+          amount: Number(group.weekly_amount),
+          txType: "deposit",
+          weekNumber: group.current_week + 1,
+        }),
+      });
+
+      setDepositStatus(`Deposit successful! Tx: ${signature.slice(0, 8)}...`);
+      await loadData();
+    } catch (e: any) {
+      setDepositStatus(`Error: ${e.message || "Transaction failed"}`);
+    }
+    setDepositing(false);
   }
 
   function formatUsdc(lamports: number | string) {
@@ -219,9 +257,20 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
       )}
 
       {group && (
-        <button className="w-full py-4 bg-gradient-to-r from-[#7c3aed] to-[#4f46e5] text-white font-bold rounded-xl hover:opacity-90 transition text-lg">
-          Deposit {formatUsdc(group.weekly_amount)} USDC
-        </button>
+        <div>
+          <button
+            onClick={handleDeposit}
+            disabled={depositing}
+            className="w-full py-4 bg-gradient-to-r from-[#7c3aed] to-[#4f46e5] text-white font-bold rounded-xl hover:opacity-90 transition text-lg disabled:opacity-50"
+          >
+            {depositing ? "Signing transaction..." : `Deposit ${formatUsdc(group.weekly_amount)} USDC`}
+          </button>
+          {depositStatus && (
+            <p className={`mt-3 text-sm text-center ${depositStatus.startsWith("Error") ? "text-red-500" : "text-green-600"}`}>
+              {depositStatus}
+            </p>
+          )}
+        </div>
       )}
     </div>
   );

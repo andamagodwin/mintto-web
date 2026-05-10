@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { depositUsdc } from "../lib/deposit";
+import { People, Copy, TickCircle } from "iconsax-react";
 
 const API_BASE = "https://mintto-api-c493341a60c4.herokuapp.com";
 
@@ -35,6 +36,7 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
   const [totalWeeks, setTotalWeeks] = useState("12");
   const [depositing, setDepositing] = useState(false);
   const [depositStatus, setDepositStatus] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   async function loadData() {
     try {
@@ -160,6 +162,25 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
               className="bg-gradient-to-r from-[#7c3aed] to-[#4f46e5] h-3 rounded-full transition-all"
               style={{ width: `${group.progress}%` }}
             />
+          </div>
+
+          {/* Invite */}
+          <div className="flex items-center justify-between mb-4 p-3 bg-[#f5f3ff] rounded-xl">
+            <div className="flex items-center gap-2">
+              <People size={18} color="#7c3aed" variant="Bold" />
+              <span className="text-sm font-medium text-[#7c3aed]">Invite a friend to this group</span>
+            </div>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/join/${group.id}`);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              className="flex items-center gap-1 px-3 py-1.5 bg-[#7c3aed] text-white text-xs font-medium rounded-lg hover:opacity-90 transition"
+            >
+              {copied ? <TickCircle size={14} color="#fff" /> : <Copy size={14} color="#fff" />}
+              {copied ? "Copied!" : "Copy Link"}
+            </button>
           </div>
 
           {/* Members */}

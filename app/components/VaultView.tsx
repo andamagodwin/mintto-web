@@ -1,58 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-const API_BASE = "https://mintto-api-c493341a60c4.herokuapp.com";
-
-interface GroupInfo {
-  id: string;
-  name: string;
-  weekly_amount: string;
-  total_weeks: number;
-  current_week: number;
-  total_deposited: string;
-  status: string;
-  vault_pda: string | null;
-  group_pda: string | null;
-  token_mint: string;
-  created_at: string;
-}
+import { useStore } from "../lib/store";
+import { Bank } from "iconsax-react";
 
 export default function VaultView({ walletAddress }: { walletAddress: string }) {
-  const [groups, setGroups] = useState<GroupInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [solBalance, setSolBalance] = useState<number | null>(null);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch(`${API_BASE}/api/groups/${walletAddress}`);
-        setGroups(await res.json());
-      } catch (e) {
-        console.error(e);
-      }
-
-      try {
-        const rpc = await fetch("https://api.devnet.solana.com", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            id: 1,
-            method: "getBalance",
-            params: [walletAddress],
-          }),
-        });
-        const data = await rpc.json();
-        setSolBalance(data.result?.value / 1_000_000_000);
-      } catch (e) {
-        console.error(e);
-      }
-
-      setLoading(false);
-    }
-    load();
-  }, [walletAddress]);
+  const { groups, solBalance, loading } = useStore();
 
   function formatUsdc(lamports: number | string) {
     return (Number(lamports) / 1_000_000).toLocaleString(undefined, { minimumFractionDigits: 2 });
@@ -61,7 +13,7 @@ export default function VaultView({ walletAddress }: { walletAddress: string }) 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-[#7c3aed] font-semibold animate-pulse">Loading...</p>
+        <p className="text-[#F97316] font-semibold animate-pulse">Loading...</p>
       </div>
     );
   }
@@ -87,6 +39,7 @@ export default function VaultView({ walletAddress }: { walletAddress: string }) 
       <h2 className="text-lg font-semibold text-[#1a1a2e] mb-4">Your Groups</h2>
       {groups.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
+          <Bank size={32} color="#6b7280" variant="Linear" className="mx-auto mb-3" />
           <p className="text-[#6b7280]">No vault groups yet. Create one from the Dashboard.</p>
         </div>
       ) : (
@@ -129,7 +82,7 @@ export default function VaultView({ walletAddress }: { walletAddress: string }) 
                     href={`https://solscan.io/account/${g.vault_pda}?cluster=devnet`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs font-mono text-[#2563eb] hover:underline break-all"
+                    className="text-xs font-mono text-[#F97316] hover:underline break-all"
                   >
                     {g.vault_pda}
                   </a>
@@ -143,7 +96,7 @@ export default function VaultView({ walletAddress }: { walletAddress: string }) 
                     href={`https://solscan.io/token/${g.token_mint}?cluster=devnet`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs font-mono text-[#2563eb] hover:underline break-all"
+                    className="text-xs font-mono text-[#F97316] hover:underline break-all"
                   >
                     {g.token_mint}
                   </a>

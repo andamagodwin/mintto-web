@@ -1,58 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { depositUsdc } from "../lib/deposit";
+import { useStore } from "../lib/store";
 import { People, Copy, TickCircle } from "iconsax-react";
 
 const API_BASE = "https://mintto-api-c493341a60c4.herokuapp.com";
 
-interface Member {
-  display_name: string;
-  wallet_address: string;
-  total_deposited: string;
-  status: string;
-}
-
-interface GroupStatus {
-  id: string;
-  name: string;
-  weekly_amount: string;
-  total_weeks: number;
-  current_week: number;
-  total_deposited: string;
-  vault_pda: string | null;
-  members: Member[];
-  goal: number;
-  progress: number;
-}
-
 export default function HomeView({ walletAddress }: { walletAddress: string }) {
-  const [group, setGroup] = useState<GroupStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { groupStatus: group, loading, refreshGroup } = useStore();
   const [creating, setCreating] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [groupName, setGroupName] = useState("");
-  const [weeklyAmount, setWeeklyAmount] = useState("2000000");
+  const [weeklyAmount, setWeeklyAmount] = useState("2");
   const [totalWeeks, setTotalWeeks] = useState("12");
   const [depositing, setDepositing] = useState(false);
   const [depositStatus, setDepositStatus] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
-  async function loadData() {
-    try {
-      const res = await fetch(`${API_BASE}/api/groups/${walletAddress}`);
-      const groups = await res.json();
-      if (groups.length > 0) {
-        const statusRes = await fetch(`${API_BASE}/api/groups/${groups[0].id}/status`);
-        setGroup(await statusRes.json());
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    setLoading(false);
-  }
-
-  useEffect(() => { loadData(); }, [walletAddress]);
 
   async function createGroup() {
     setCreating(true);
@@ -63,13 +27,13 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
         body: JSON.stringify({
           name: groupName,
           creatorWallet: walletAddress,
-          weeklyAmount: Number(weeklyAmount),
+          weeklyAmount: Math.round(Number(weeklyAmount) * 1_000_000),
           totalWeeks: Number(totalWeeks),
         }),
       });
       setFormOpen(false);
       setGroupName("");
-      await loadData();
+      await refreshGroup(walletAddress);
     } catch (e) {
       console.error(e);
     }
@@ -81,7 +45,6 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
     setDepositing(true);
     setDepositStatus(null);
     try {
-      // Use vault_pda as recipient if available, otherwise use creator wallet as escrow
       const recipient = group.vault_pda || walletAddress;
       const signature = await depositUsdc({
         walletAddress,
@@ -89,7 +52,6 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
         amount: Number(group.weekly_amount),
       });
 
-      // Record transaction in backend
       await fetch(`${API_BASE}/api/transactions/record`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -104,7 +66,7 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
       });
 
       setDepositStatus(`Deposit successful! Tx: ${signature.slice(0, 8)}...`);
-      await loadData();
+      await refreshGroup(walletAddress);
     } catch (e: any) {
       setDepositStatus(`Error: ${e.message || "Transaction failed"}`);
     }
@@ -118,7 +80,7 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-[#7c3aed] font-semibold animate-pulse">Loading...</p>
+        <p className="text-[#F97316] font-semibold animate-pulse">Loading...</p>
       </div>
     );
   }
@@ -130,7 +92,7 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-gradient-to-br from-[#93c5fd] via-[#c4b5fd] to-[#fbcfe8] rounded-2xl p-6">
+        <div className="bg-gradient-to-br from-[#FFF7ED] via-[#FFEDD5] to-[#FED7AA] rounded-2xl p-6">
           <p className="text-sm font-medium text-[#1a1a2e]/70 mb-1">Total Saved</p>
           <p className="text-3xl font-bold text-[#1a1a2e]">
             {group ? formatUsdc(group.total_deposited) : "0.00"} <span className="text-lg">USDC</span>
@@ -150,7 +112,7 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
         </div>
       </div>
 
-      {/* Progress */}
+      {/* Progress + Members */}
       {group && (
         <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
           <div className="flex justify-between items-center mb-3">
@@ -159,16 +121,16 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
           </div>
           <div className="w-full bg-gray-100 rounded-full h-3 mb-4">
             <div
-              className="bg-gradient-to-r from-[#7c3aed] to-[#4f46e5] h-3 rounded-full transition-all"
+              className="bg-gradient-to-r from-[#F97316] to-[#EA580C] h-3 rounded-full transition-all"
               style={{ width: `${group.progress}%` }}
             />
           </div>
 
           {/* Invite */}
-          <div className="flex items-center justify-between mb-4 p-3 bg-[#f5f3ff] rounded-xl">
+          <div className="flex items-center justify-between mb-4 p-3 bg-[#FFF7ED] rounded-xl">
             <div className="flex items-center gap-2">
-              <People size={18} color="#7c3aed" variant="Bold" />
-              <span className="text-sm font-medium text-[#7c3aed]">Invite a friend to this group</span>
+              <People size={18} color="#F97316" variant="Bold" />
+              <span className="text-sm font-medium text-[#EA580C]">Invite a friend to this group</span>
             </div>
             <button
               onClick={() => {
@@ -176,7 +138,7 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
-              className="flex items-center gap-1 px-3 py-1.5 bg-[#7c3aed] text-white text-xs font-medium rounded-lg hover:opacity-90 transition"
+              className="flex items-center gap-1 px-3 py-1.5 bg-[#F97316] text-white text-xs font-medium rounded-lg hover:opacity-90 transition"
             >
               {copied ? <TickCircle size={14} color="#fff" /> : <Copy size={14} color="#fff" />}
               {copied ? "Copied!" : "Copy Link"}
@@ -190,7 +152,7 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
               <div key={i} className="flex items-center justify-between py-2 px-4 bg-[#f9fafb] rounded-xl">
                 <div className="flex items-center gap-3">
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm ${
-                    i === 0 ? "bg-gradient-to-br from-[#60a5fa] to-[#818cf8]" : "bg-gradient-to-br from-[#fbbf24] to-[#f97316]"
+                    i === 0 ? "bg-gradient-to-br from-[#F97316] to-[#EA580C]" : "bg-gradient-to-br from-[#F59E0B] to-[#D97706]"
                   }`}>
                     {member.display_name[0].toUpperCase()}
                   </div>
@@ -214,13 +176,13 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
         </div>
       )}
 
-      {/* Create Group / Deposit */}
+      {/* Create Group */}
       {!group && !formOpen && (
         <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
           <p className="text-[#6b7280] mb-4">You haven&apos;t joined any savings group yet.</p>
           <button
             onClick={() => setFormOpen(true)}
-            className="px-6 py-3 bg-gradient-to-r from-[#7c3aed] to-[#4f46e5] text-white font-semibold rounded-xl hover:opacity-90 transition"
+            className="px-6 py-3 bg-gradient-to-r from-[#F97316] to-[#EA580C] text-white font-semibold rounded-xl hover:opacity-90 transition"
           >
             Create a Group
           </button>
@@ -228,7 +190,7 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
       )}
 
       {formOpen && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-6">
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-8">
           <h2 className="font-semibold text-[#1a1a2e] mb-4">Create Savings Group</h2>
           <div className="space-y-4">
             <div>
@@ -237,16 +199,16 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 placeholder="e.g. Savings Duo"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed]"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F97316]/20 focus:border-[#F97316]"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm text-[#6b7280] block mb-1">Weekly Amount (USDC micro)</label>
+                <label className="text-sm text-[#6b7280] block mb-1">Weekly Amount (USDC)</label>
                 <input
                   value={weeklyAmount}
                   onChange={(e) => setWeeklyAmount(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed]"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F97316]/20 focus:border-[#F97316]"
                 />
               </div>
               <div>
@@ -254,7 +216,7 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
                 <input
                   value={totalWeeks}
                   onChange={(e) => setTotalWeeks(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#7c3aed]/20 focus:border-[#7c3aed]"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#F97316]/20 focus:border-[#F97316]"
                 />
               </div>
             </div>
@@ -262,14 +224,11 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
               <button
                 onClick={createGroup}
                 disabled={creating || !groupName}
-                className="px-6 py-3 bg-gradient-to-r from-[#7c3aed] to-[#4f46e5] text-white font-semibold rounded-xl hover:opacity-90 transition disabled:opacity-50"
+                className="px-6 py-3 bg-gradient-to-r from-[#F97316] to-[#EA580C] text-white font-semibold rounded-xl hover:opacity-90 transition disabled:opacity-50"
               >
                 {creating ? "Creating..." : "Create Group"}
               </button>
-              <button
-                onClick={() => setFormOpen(false)}
-                className="px-6 py-3 text-[#6b7280] hover:bg-gray-50 rounded-xl transition"
-              >
+              <button onClick={() => setFormOpen(false)} className="px-6 py-3 text-[#6b7280] hover:bg-gray-50 rounded-xl transition">
                 Cancel
               </button>
             </div>
@@ -277,12 +236,13 @@ export default function HomeView({ walletAddress }: { walletAddress: string }) {
         </div>
       )}
 
+      {/* Deposit */}
       {group && (
         <div>
           <button
             onClick={handleDeposit}
             disabled={depositing}
-            className="w-full py-4 bg-gradient-to-r from-[#7c3aed] to-[#4f46e5] text-white font-bold rounded-xl hover:opacity-90 transition text-lg disabled:opacity-50"
+            className="w-full py-4 bg-gradient-to-r from-[#F97316] to-[#EA580C] text-white font-bold rounded-xl hover:opacity-90 transition text-lg disabled:opacity-50"
           >
             {depositing ? "Signing transaction..." : `Deposit ${formatUsdc(group.weekly_amount)} USDC`}
           </button>

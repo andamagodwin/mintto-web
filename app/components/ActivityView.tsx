@@ -1,37 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-const API_BASE = "https://mintto-api-c493341a60c4.herokuapp.com";
-
-interface Transaction {
-  id: string;
-  wallet_address: string;
-  tx_signature: string;
-  amount: string;
-  tx_type: string;
-  week_number: number;
-  created_at: string;
-}
+import { useStore } from "../lib/store";
+import { Activity } from "iconsax-react";
 
 export default function ActivityView({ walletAddress }: { walletAddress: string }) {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch(`${API_BASE}/api/transactions/user/${walletAddress}`);
-        if (res.ok) {
-          setTransactions(await res.json());
-        }
-      } catch (e) {
-        console.error(e);
-      }
-      setLoading(false);
-    }
-    load();
-  }, [walletAddress]);
+  const { transactions, loading } = useStore();
 
   function formatUsdc(lamports: number | string) {
     return (Number(lamports) / 1_000_000).toLocaleString(undefined, { minimumFractionDigits: 2 });
@@ -50,7 +23,7 @@ export default function ActivityView({ walletAddress }: { walletAddress: string 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-[#7c3aed] font-semibold animate-pulse">Loading...</p>
+        <p className="text-[#F97316] font-semibold animate-pulse">Loading...</p>
       </div>
     );
   }
@@ -62,7 +35,7 @@ export default function ActivityView({ walletAddress }: { walletAddress: string 
 
       {transactions.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
-          <p className="text-4xl mb-4">📋</p>
+          <Activity size={32} color="#6b7280" variant="Linear" className="mx-auto mb-3" />
           <p className="text-[#6b7280]">No transactions yet. Make your first deposit to see activity here.</p>
         </div>
       ) : (
@@ -103,7 +76,7 @@ export default function ActivityView({ walletAddress }: { walletAddress: string 
                       href={`https://solscan.io/tx/${tx.tx_signature}?cluster=devnet`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-[#2563eb] hover:underline font-mono"
+                      className="text-sm text-[#F97316] hover:underline font-mono"
                     >
                       {tx.tx_signature.slice(0, 8)}...
                     </a>
